@@ -1,0 +1,109 @@
+% Encoding: UTF-8
+
+@Unpublished{Lacker2011,
+  author    = {Kevin Lacker},
+  title     = {{What is the curse of dimensionality}},
+  note      = {{A blogpost on Quora}},
+  year      = {2011},
+  timestamp = {2018-05-18},
+  url       = {{https://www.quora.com/What-is-the-curse-of-dimensionality}},
+}
+
+@Book{Hoeting2013,
+  title     = {Computational Statistics},
+  publisher = {Wiley},
+  year      = {2013},
+  author    = {Geof H. Givens and Jennifer Hoeting},
+}
+
+@Article{Kroese2014,
+  author  = {{Dirk p. Kroese} and {Tim Brereton} and {Thomas Taimre} and {Zdravko l. Botev}},
+  title   = {{Why the Monte Carlo Method is so important today}},
+  journal = {WIREs Computational Statistics},
+  year    = {2014},
+}
+
+@Article{Creal2009,
+  author  = {Drew Creal},
+  title   = {{A survey of Sequential Monte Carlo Methods for Economics and Finance}},
+  journal = {Econometric Reveiws},
+  year    = {2009},
+}
+
+@Article{Geweke1989,
+  author  = {John Geweke},
+  title   = {{Bayesian Inference in Econometric Models using Monte Carlo Integration}},
+  journal = {Econometrica},
+  year    = {1989},
+}
+
+@Article{Rambharat2012,
+  author  = {Bhojnarine R. Rambharat},
+  title   = {{American Option Valuation with Particle Filters}},
+  journal = {Springer Proceedings in Mathematics},
+  year    = {2012},
+}
+
+@Article{Ye2011,
+  author  = {Fan Ye and Enlu Zhou},
+  title   = {{Pricing American Options under Partial Observation of Stochastic Volatility}},
+  journal = {Proceedings of the 2011 Winter Simulation Conference},
+  year    = {2011},
+}
+
+@Article{Deng2010,
+  author  = {Shaojie Deng and Kay Giesecke and Tze Leung Lai},
+  title   = {{Sequential Importance Sampling and Resampling for Dynamic Portfolio Credit Risk}},
+  journal = {INFORMS 2010},
+  year    = {2010},
+}
+
+@Article{Doucet2001,
+  author  = {Arnaud Doucet and Nando de Freitas and Neil Gordon},
+  title   = {{An Introduction to Sequential Monte Carlo Methods}},
+  journal = {Part of "Sequential Monte Carlo Methods in Practice},
+  year    = {2001},
+}
+
+@Article{Chopin2012,
+  author  = {{N., Chopin} and {P.E., Jacob} and {O., Papaspiliopoulos}},
+  title   = {{SMC: An Efficient Algorithm for Sequential Analysis of State-Space Models}},
+  journal = {Computational Statistics},
+  year    = {2012},
+}
+
+@InCollection{Stroud2004,
+  author    = {Jonathan R. Stroud and Nicholas G. Polson and Peter Müller},
+  title     = {{Practial Filtering for Stochastic Volatility Model}},
+  booktitle = {State Space and Unobserved Component Models: Theory and Applications},
+  publisher = {Cambridge University Press},
+  year      = {2004},
+}
+
+@Article{Kong1992,
+  author  = {Agustine Kong},
+  title   = {{A Note on Importance Sampling using Standardized Weights}},
+  journal = {Technical Report NO. 348},
+  year    = {1992},
+}
+
+@Book{DoucetArnaud2001SMCm,
+  title     = {{Sequential Monte Carlo methods in practice}},
+  publisher = {Springer},
+  year      = {2001},
+  author    = {Arnaud Doucet and Nando De Freitas and Neil Gordon},
+  series    = {Statistics for engineering and information science},
+  address   = {New York},
+  isbn      = {0387951466},
+  keywords  = {Monte Carlo method},
+  language  = {eng},
+}
+
+@Article{Shepard1999,
+  author  = {M.K. Pitt and N. Shepard},
+  title   = {{Filtering via simulation: Auxiliary Particle Filters}},
+  journal = {Journal of the American Statistical Association},
+  year    = {1999},
+}
+
+@Comment{jabref-meta: databaseType:bibtex;}
