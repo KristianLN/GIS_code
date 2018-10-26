@@ -8,8 +8,16 @@ output:
   html_notebook: default
 bibliography: Bib.bib
 ---
-This GIS project intents to visulize the differences in growth rates of median earnings between boroughs. While it causes divergence peoples living standards, it is also a drag on each individual boroughs propensity to invest in innovation. At least according to some economists, innovation is the many driver of future growth for economies on advanced growth paths. Innovation can also force that takes economies from one growth path to another, and therefore should investing in innovation be a priority for all sociaties. (Skriv noget mere)  
-The frist thing we do is to read in the raw data that contains the the median earnings for each borough.  
+The aim of this GIS project is to investigate the differences in using R and QGIS as the chosen GIS tool. The data used in this project is timeseries data on median income for tax payers in United Kingdom, from 1999 to 2014. The available data covers individual boroughs in London as well as regional and national areas in United Kingdom.
+The conclusion of this project is that each program has its advantage, and so in respect to the question about which one is the better, it depends on the goal of the task. R does a better job on the Data Science related tasks, but QGIS makes it easier to handle the visualization part of the job.
+
+This short project is structured such that it should be clear to see dis-/advantages of each program. 
+Below follows a short description of the data, both the raw and processed data that at the end is visualised.
+The project rounds of with an in-depth description of the dis-/advantages of both programs.
+
+This GIS project intents to visualise the differences in growth multiples of median earnings between boroughs in London. While it causes divergence peoples living standards, it is also a drag on each individual borough’s propensity to invest in innovation. According to some economists, innovation is the main driver of future growth for economies on advanced growth paths. Furthermore, innovation can take economies from one growth path to another, and therefore should investing in innovation be a priority for all societies. 
+
+The first thing we do is to read in the raw data that contains the median earnings for each borough in London, as well as regional and national regions in United Kingdom.  
 ```{r include=FALSE}
 #To clear the global environment
 rm(list=ls())
@@ -29,11 +37,12 @@ data = data[2:34,]
 ```
 
 ```{r echo=FALSE}
-print(data[1:5,1:6])
+print(data_raw[1:5,1:6])
 ```
 
-Above can be seen a snippet of the raw data. This is the data from where the average annualized growth rate has been calculated.
-A growth rate for each year, for each borough, is calculated and can be seen from the snippet below.
+Above can be seen a snippet of the raw data. This is the data from where the average annualized growth multiple is being calculated. It should be obvious from the above snippet, that the data isn't as clean as one could wish, and more important, it is not at all ready to be loaded in to QGIS.
+
+A growth multiple for each year, for each borough, is calculated and can be seen from the snippet below.
 
 ```{r include=FALSE}
 for (i in seq(3,length(names(data)))){
@@ -57,8 +66,8 @@ names(growth_rates)[18] = "Avg._Growth_Rate_in_Earnings"
 print(growth_rates[1:5,1:6])
 ```
 
-We are mostly interested in the average annualized growth rate, and it is the one that we plot in the map.
-The average growth rate for each borough is visualized on the map below.
+In this project, we are only interested in the average annualized growth multiple, and it is the one that we plot in the map.
+The average growth multiple for each borough is visualized on the map below.
 
 ```{r include=FALSE}
 #The boundary data can be downloaded from github
@@ -87,19 +96,6 @@ qtm(london_osm) +
 
 ```
 
-Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+![Map created in QGIS](Avg_Ann_Growth_Rate.png)
 
-When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
-
-The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
-
-[@Creal2009; @Deng2010]
-
-```{r}
-library("png")
-
-#pic <- readPNG(system.file("img", "Avg_Ann_Growth_Rate.png", package = "png"))
-pic <- readPNG("Avg_Ann_Growth_Rate.png")
-#rasterImage(pic, 1.2, 1.27, 1.8, 1.73)
-print(pic)
-```
+Below is the coming description of the dis-/advantages of each program.
