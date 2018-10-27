@@ -1,13 +1,15 @@
 ---
 title: "R / QGIS Map-Off - When the Data Scientist Meets the Vizulizer"
 author: "Kristian Lunow Nielsen"
+date: "`r Sys.Date()`"
 output:
-  html_document:
-    df_print: paged
-  word_document: default
-  html_notebook: default
-bibliography: Bib.bib
+  prettydoc::html_pretty:
+    theme: architect
+    highlight: github
+
 ---
+## Introduction 
+
 The aim of this GIS project is to investigate the differences in using R and QGIS as the chosen GIS tool. The data used in this project is timeseries data on median income for tax payers in United Kingdom, from 1999 to 2014. The available data covers individual boroughs in London as well as regional and national areas in United Kingdom.
 The conclusion of this project is that each program has its advantage, and so in respect to the question about which one is the better, it depends on the goal of the task. R does a better job on the Data Science related tasks, but QGIS makes it easier to handle the visualization part of the job.
 
@@ -35,7 +37,7 @@ for (i in seq(3,length(names(data_raw)),3)){
 
 data = data[2:34,]
 ```
-
+#### Fig. 1 - Snippet of the raw data
 ```{r echo=FALSE}
 print(data_raw[1:5,1:6])
 ```
@@ -45,23 +47,37 @@ Above can be seen a snippet of the raw data. This is the data from where the ave
 A growth multiple for each year, for each borough, is calculated and can be seen from the snippet below.
 
 ```{r include=FALSE}
+data_all = data[,]
+
 for (i in seq(3,length(names(data)))){
   names(data)[i] = 1996+i
+  names(data_all)[i] = 1996+i
 }
 names(data)[1] = "Code"
+names(data_all)[1] = "Code"
 names(data)[2] = "Area"
+names(data_all)[2] = "Area"
 
 growth_rates= data[,1:2]
 
 for (i in seq(4,length(names(data)),1)){
   growth_rates = cbind(growth_rates, (as.numeric(data[,i])/as.numeric(data[,i-1])))
+  data_all = cbind(data_all, (as.numeric(data_all[,i])/as.numeric(data_all[,i-1])))
   names(growth_rates)[i-1] = 1996+i
+  names(data_all)[i+15] = sprintf('GM_ %i',(1996+i))
 }
+
+data_all=data_all[complete.cases(data_all),]
 
 growth_rates = cbind(growth_rates, ((as.numeric(data[,18])/as.numeric(data[,3]))^(1/16)))
 names(growth_rates)[18] = "Avg._Growth_Rate_in_Earnings"
-```
+data_all = cbind(data_all, ((as.numeric(data_all[,18])/as.numeric(data_all[,3]))^(1/16)))
+names(data_all)[34] = "Avg._Growth_Rate_in_Earnings"
 
+write.csv(data_all,'Processed_income_data.csv')
+
+```
+#### Fig. 2 - Snippet of the processed data
 ```{r echo=FALSE}
 print(growth_rates[1:5,1:6])
 ```
@@ -77,25 +93,28 @@ BoroughDataMap <- append_data(BoroughMapSF,growth_rates, key.shp ="GSS_CODE", ke
 
 BoroughDataMap["Area"] <- NULL
 ```
-```{r echo=FALSE}
+```{r include=FALSE}
 london_osm <- read_osm(BoroughDataMap, type = "esri", zoom = NULL)
-qtm(london_osm) + 
-  tm_shape(BoroughDataMap) + 
-  tm_polygons("Avg._Growth_Rate_in_Earnings", 
-              style="jenks",
-              palette="Greens",
-              midpoint=NA,
-              title=c("Growth Multiple"),
-              alpha = 0.5,
-              legend.position = c("right", "bottom")) + 
-  tm_compass(position = c("left", "bottom"),type = "arrow") + 
-  tm_scale_bar(position = c("left", "bottom")) +
-  tm_layout(legend.position = c("right","bottom"),legend.frame = T) +
-  tm_layout(panel.show = TRUE, panel.labels = "Annualised Growth Multiple, Median Earnings, from 1999-2014", panel.label.size = 1.05)
-
+m <-qtm(london_osm) + 
+      tm_shape(BoroughDataMap) + 
+      tm_polygons("Avg._Growth_Rate_in_Earnings", 
+                  style="jenks",
+                  palette="Greens",
+                  midpoint=NA,
+                  title=c("Growth Multiple"),
+                  alpha = 0.5,
+                  legend.position = c("right", "bottom")) + 
+      tm_compass(position = c("left", "bottom"),type = "arrow") + 
+      tm_scale_bar(position = c("left", "bottom")) +
+      tm_layout(legend.position = c("right","bottom"),legend.frame = T) +
+      tm_layout(panel.show = TRUE, panel.labels = "Annualised Growth Multiple, Median Earnings, from 1999-2014", panel.label.size = 1.05)
+tmap_save(m,"Annualised Growth Multiple.png", width=2820, height=1980)
 
 ```
+#### Fig. 3 - Map created in R
+![Its a decent map but the creative steam has a harder time flowing](Annualised Growth Multiple.png)
 
-![Map created in QGIS](Avg_Ann_Growth_Rate.png)
+#### Fig. 4 - Map created in QGIS
+![The map is more elegant and readable, and it is easier to include add-ons as the national map in the right corner.](Avg_Ann_Growth_Rate.png)
 
 Below is the coming description of the dis-/advantages of each program.

@@ -13,22 +13,34 @@ for (i in seq(3,length(names(data_raw)),3)){
   data = cbind(data, data_raw[,i+2])
 }
 
+data_all = data[,]
 data = data[2:34,]
 for (i in seq(3,length(names(data)))){
   names(data)[i] = 1996+i
+  names(data_all)[i] = 1996+i
 }
 names(data)[1] = "Code"
+names(data_all)[1] = "Code"
 names(data)[2] = "Area"
+names(data_all)[2] = "Area"
 
 growth_rates= data[,1:2]
 
 for (i in seq(4,length(names(data)),1)){
   growth_rates = cbind(growth_rates, (as.numeric(data[,i])/as.numeric(data[,i-1])))
+  data_all = cbind(data_all, (as.numeric(data_all[,i])/as.numeric(data_all[,i-1])))
   names(growth_rates)[i-1] = 1996+i
+  names(data_all)[i+15] = sprintf('GM_ %i',(1996+i))
 }
+
+data_all=data_all[complete.cases(data_all),]
 
 growth_rates = cbind(growth_rates, ((as.numeric(data[,18])/as.numeric(data[,3]))^(1/16)))
 names(growth_rates)[18] = "Avg._Growth_Rate_in_Earnings"
+data_all = cbind(data_all, ((as.numeric(data_all[,18])/as.numeric(data_all[,3]))^(1/16)))
+names(data_all)[34] = "Avg._Growth_Rate_in_Earnings"
+
+write.csv(data_all,'Processed_income_data.csv')
 print(growth_rates[1:5,1:6])
 
 # Plotting
