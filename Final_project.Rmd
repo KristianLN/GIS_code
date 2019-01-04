@@ -1,0 +1,491 @@
+---
+title: "Final GIS Project"
+author: "Candidate Number: BJHZ7"
+date: "2019 Januar 4"
+output: pdf_document
+---
+```{r include=FALSE}
+#To clear the global environment
+rm(list=ls())
+
+# Enabling the relevant libraries
+x = c("tmap","sf","geojsonio",'plyr','rgdal','tidyverse','RCurl','sp','RJSONIO','rgeos',
+      "maptools","sp", "tmaptools",'GISTools','spatstat', 'raster','fpc','OpenStreetMap',
+      'grid', 'Gmisc', 'ggplot2', 'dbscan')
+lapply(x, require, character.only = TRUE)
+```
+
+Total word count (excluding headers and rewriting of question in sub-project two): 2920
+
+This project aims at showcasing some of the capabilities within R when it comes to conducting spatial analyses and visualisations. The project consists of three parts; the first part is a map-off between a map created in QGIS and a map created in R. This part shows come of the strengths in R when it comes to data management, along with how far the visualisation aspect has come. The second part of the project is a spatial pattern analysis, with the aim of exploiting R's capabilities for spatial statistics analyses. The third part is an interactive visualisation app, build within R through Shiny, showing the 2010 Census data for the states and counties within the United States.
+It has for long time not been unusual to engage multiple software's when conducting GIS analyses.It can for many reasons, such as reproductiveness and convenience of not having to switch between two software's, be of interest to be able to conduct the entire analysis within one software. It is important that the quality of the analysis is not affected by the choice of using a single software for the analysis. Let that be the motivation for the aim of this final project.
+
+# R / QGIS Map-Off - When the Visual Data Scientist Meets the Visualiser
+
+## Introduction 
+
+This GIS project aims to investigate the differences in using R and QGIS. The data used in this project is panel data on median income for taxpayers in the United Kingdom, from 1999 to 2014. The available data covers individual boroughs in London as well as regional and national areas in the United Kingdom.
+This project concludes that each program has its advantages, and so in respect to which is the better choice, it depends on the goal of the task. R does a better job on the Data Science related tasks, i.e. manipulation of the data, but QGIS makes it easier to handle the visualisation part of the job, at least in the simple setting.
+
+This short project is structured such that it should be clear to see dis-/advantages of each program. 
+Below follows a short description of the data, both the raw and processed data, with the processed data being what at the end is visualised.
+The project rounds of with an description of the dis-/advantages of both programs.
+
+## Analysis
+
+This GIS project intends to visualise the differences in average growth factor of median earnings between boroughs in London. These differences are of interest because they can explain differences in each boroughs propensity to invest in innovation, which is larger driver of wealth creation. Which eventually should affect the people of the boroughs wellbeing.  
+
+The first thing to do is to read in the raw dataset that contains the data on the median earnings for each borough in London, as well as regional and national regions in the United Kingdom.
+
+```{r include=FALSE}
+#To clear the global environment
+rm(list=ls())
+# Enabling the relevant libraries
+x = c("tidyverse",'shinyjs','leaflet','magrittr','reshape2','readxl','dplyr',"maptools","classInt","OpenStreetMap","tmap","RColorBrewer", "sp", "rgeos", "tmaptools","ggmap", "shinyjs","sf", "downloader", "rgdal", "geojsonio")
+lapply(x, require, character.only = TRUE)
+
+data_raw <- read_xls('income-of-tax-payers.xls')
+holder = names(data_raw)
+data = data_raw[,1:2]
+
+for (i in seq(3,length(names(data_raw)),3)){
+  data = cbind(data, data_raw[,i+2])
+}
+
+data = data[2:34,]
+```
+#### Table 1.1 - Snippet of the raw data
+```{r echo=FALSE}
+print(data_raw[1:4,1:6])
+```
+
+Above can be seen a snippet of the raw dataset. The data above is the data from where the average annualised growth multiple is calculated. It should be obvious from the above snippet, that the data is not as clean as one could wish, and more importantly, it is not at all ready to be loaded into QGIS. It is necessary to ensure the correct format of each column, and apply headers, to work with it in QGIS.
+
+A growth factor for each year, for each borough, is calculated and can be seen from the snippet below. The maps below visualise the average growth factor for each borough.
+
+```{r include=FALSE}
+data_all = data[,]
+
+for (i in seq(3,length(names(data)))){
+  names(data)[i] = 1996+i
+  names(data_all)[i] = 1996+i
+}
+names(data)[1] = "Code"
+names(data_all)[1] = "Code"
+names(data)[2] = "Area"
+names(data_all)[2] = "Area"
+
+growth_rates= data[,1:2]
+
+for (i in seq(4,length(names(data)),1)){
+  growth_rates = cbind(growth_rates, (as.numeric(data[,i])/as.numeric(data[,i-1])))
+  data_all = cbind(data_all, (as.numeric(data_all[,i])/as.numeric(data_all[,i-1])))
+  names(growth_rates)[i-1] = 1996+i
+  names(data_all)[i+15] = sprintf('GM_ %i',(1996+i))
+}
+
+data_all=data_all[complete.cases(data_all),]
+
+growth_rates = cbind(growth_rates, ((as.numeric(data[,18])/as.numeric(data[,3]))^(1/16)))
+names(growth_rates)[18] = "Avg._Growth_Rate_in_Earnings"
+data_all = cbind(data_all, ((as.numeric(data_all[,18])/as.numeric(data_all[,3]))^(1/16)))
+names(data_all)[34] = "Avg._Growth_Rate_in_Earnings"
+
+write.csv(data_all,'Processed_income_data.csv')
+
+```
+#### Table 1.2 - Snippet of the processed data
+```{r echo=FALSE}
+print(growth_rates[1:5,1:6])
+```
+
+```{r include=FALSE}
+
+BoroughMapSF <- read_shape("London_Borough_Excluding_MHW.shp", as.sf = TRUE)
+
+BoroughDataMap <- append_data(BoroughMapSF,growth_rates, key.shp ="GSS_CODE", key.data = "Code", ignore.duplicates = TRUE)
+
+BoroughDataMap["Area"] <- NULL
+```
+```{r include=FALSE}
+london_osm <- read_osm(BoroughDataMap, type = "esri", zoom = NULL)
+m <-qtm(london_osm) + 
+      tm_shape(BoroughDataMap) + 
+      tm_polygons("Avg._Growth_Rate_in_Earnings", 
+                  style="jenks",
+                  palette="Greens",
+                  midpoint=NA,
+                  title=c("Growth Multiple"),
+                  alpha = 0.5,
+                  legend.position = c("right", "bottom")) + 
+      tm_compass(position = c("left", "bottom"),type = "arrow") + 
+      tm_scale_bar(position = c("left", "bottom")) +
+      tm_layout(legend.position = c("right","bottom"),legend.frame = T) +
+      tm_layout(panel.show = TRUE, panel.labels = "Annualised Growth Multiple, Median Earnings, from 1999-2014", panel.label.size = 1.05)
+tmap_save(m,"Annualised Growth Multiple.png", width=2820, height=1980)
+
+```
+
+![Map created in R: Its a decent map but the creative steam has a harder time flowing](Annualised Growth Multiple.png){width=550px}
+
+![Map created in QGIS: The map is more elegant and readable, and it is easier to include add-ons as the national map in the right corner.](Avg_Ann_Growth_Rate.png){width=540px}
+
+
+
+## Discussion
+At this point, it is worth to discuss the dis-/advantages of each of the software's used in this investigation. It is important to remember which purposes each of the software were written under, with R being designed for the brother perspective and QGIS for a specific purpose.
+That difference is directly reflected in their dis-/advantages. R extremely easily handles all sort of dataset manipulations and data processing where, for now at least, R requires more local knowledge to carry out beautiful visualisation tasks. It is possible to perform some rather advanced visualisation tasks in R, as interactive plots with the Shiny library. The challenging part about the data analysis in R is often, which libraries are most efficient to employ and how the libraries interlink. 
+
+QGIS, on the other hand, was designed with the purpose of visualising geographic data, and that is reflected in how easy it is to handle cleaned data, i.e. correctly specified data, and carry out visualisation tasks. One limitation of QGIS is that the software relies on the user to provide correctly specified data for the magic to happen, which implies the inconvenience of the need to use two software.
+
+## Conclusion
+
+It is easy to imagine R and QGIS interlinking, but it seems more likely that R will continue to develop and claim the crown, especially in terms of the convenience of not having to switch between two softwares.
+
+That final statement rounds of the first sub-project, and it is now time to look at spatial pattern analysis in R. 
+
+# Analysing the Winning Treasure Hunt Route
+
+## Introduction
+
+This document investigates the winning route of the 2016 CASA treasury hunt. R is the software of choice because of its flexibility and popularity in academia as well as the corporate society. Below, in figure 2.1, is shown the entire workflow of the investigation, and this serves as a reference for how each of the questions is answered. 
+
+### Work flow of the analysis
+
+#### Figure 2.1 - Flow diagram
+![](Flow_1.png)
+
+
+
+![](Flow_2.png)
+
+
+
+## Analysis
+
+The first five questions will not be discussed as such since it is just about extracting results. Common for all the five questions is that the relevant data are converted to SF objects, and finally correctly projected, enabling future calculations to be easily conducted. 
+The initial lack of discussion leaves more room for the exciting part, the final question, where a discussion is more appropriate.
+
+The first question of interest is, how far did the winning team travel?
+
+For the steps necessary to arrive at the answer, see figure 1 - upper middle part.
+
+The calculated travel distance is:
+
+```{r include=FALSE}
+BNG = "+init=epsg:27700"
+latlong <- "+init=epsg:4326"
+hunt <- geojson_read("Team7.geojson", what = "sp")
+huntaddresses <- read.csv("huntaddresses.csv")
+tubestations_csv <- read.csv('London stations.csv')
+#Reprojecting the winning route
+huntBNG <-spTransform(hunt, CRS(BNG))
+#Transforming the winning route to a SF object
+huntSF <- st_as_sf(huntBNG)
+```
+
+```{r echo=FALSE}
+st_length(huntSF)
+```
+
+The next question of interest is, how many TFL stations did the winning route pass within 100 meters distance?
+
+For the steps necessary to arrive at the answer, see figure 2.1 - the right side.
+
+The number of stations is:
+```{r include=FALSE}
+#Projecting the data correctly
+tubestationsSF <- st_as_sf(tubestations_csv,coords = c('OS.X','OS.Y'),crs = BNG)
+
+# Creating buffer around tubestations and calculating the intersects
+
+tubestations_100b <- st_buffer(tubestationsSF,dist = 100)
+int <- st_intersects(huntSF,tubestations_100b)
+```
+```{r echo=FALSE}
+summary(int)[1]
+```
+Next question of interest is, how many points did the winning route receive?
+
+For the steps necessary to arrive at the answer, see figure 2.1 - the left side.
+
+The total number of points the winning team got is:
+
+```{r include=FALSE}
+#Creating SF object for huntaddresses and setting the correct projection.
+
+huntaddressesSF <- st_as_sf(huntaddresses,coords = c('lon','lat'),crs = latlong)
+huntaddressesSFBNG <- st_transform(huntaddressesSF, crs = BNG)
+huntaddressesSFBNG
+tubestationsSF
+
+# Creating buffer around treasury hunt locations and calculating the intersects
+
+huntSFBNG_300b <- st_buffer(huntaddressesSFBNG,dist = 300)
+int_2 <- st_intersects(huntSF,huntSFBNG_300b)
+inter_2 <- c(unlist(int_2[1]))
+
+summary(int_2)
+
+#Getting the points
+totalpoints = 0
+for (i in inter_2){
+  print(i)
+  totalpoints = totalpoints + huntaddresses[i,2]
+}
+
+
+```
+```{r echo=FALSE}
+totalpoints
+```
+
+The next thing to be examined is, which of the Wards the winning team passed through had the, a) lowest and b) highest rates of Male Life Expectancy?
+
+For the steps necessary to arrive at the answer, see figure 2.1 - lower middle part.
+
+```{r include=FALSE}
+#reading in the London Ward data and reprojecting the data
+LondonWardsSF <- read_sf(dsn = 'LondonWards.shp')
+LondonWardsSFBNG <- st_transform(LondonWardsSF, crs = BNG)
+
+#Calculate the intersects of the winning route and the wards
+
+int_3 <- st_intersects(huntSF,LondonWardsSFBNG)
+inter_3 <- c(unlist(int_3[1]))
+#Calculating the minimum and maximum Male Life expectancy
+
+minimumMLE = 100
+maximumMLE = 0
+
+for (i in inter_3){
+  j <- LondonWardsSFBNG$MaleLE0509[i]
+
+  if (j > maximumMLE){
+    maximumMLE = j
+    maxward <- LondonWardsSFBNG$WD11NM[i]
+  } 
+  
+  if (j<minimumMLE){
+    minimumMLE = j
+    minward <- LondonWardsSFBNG$WD11NM[i]
+  }
+  
+}
+
+intersectWards <- LondonWardsSFBNG$WD11NM[inter_3]
+intersectsLE <- LondonWardsSFBNG$MaleLE0509[inter_3]
+
+```
+```{r echo=FALSE}
+cat('The winning team passewd through ', summary(int_3)[1], ' Wards doing their trip')
+cat('The Ward/wards with lowest male life expectancy is', intersectWards[intersectsLE==minimumMLE][1], '&' ,intersectWards[intersectsLE==minimumMLE][2])
+cat('and the value is ', minimumMLE)
+cat('The Ward/wards with highest male life expectancy is ', intersectWards[intersectsLE==maximumMLE], ' and the value is ', maximumMLE)
+```
+Another interest is, taking the average of all Wards that the winning team passed through, what was the average life expectancy at birth for babies born in those wards along the whole route?
+
+Each of the Wards life expectancies is summed and divided by the total number of Wards passed through.
+
+```{r include=FALSE}
+avgfemaleLE = 0
+avgmaleLE = 0
+
+for (i in inter_3){
+  j <- LondonWardsSFBNG$MaleLE0509[i]
+  l <- LondonWardsSFBNG$FemaleLE05[i]
+  avgmaleLE = avgmaleLE + j
+  avgfemaleLE = avgfemaleLE + l
+}
+```
+```{r echo=FALSE}
+cat('The average female life expectancy, over all the wards visited is ', avgfemaleLE/length(inter_3))
+cat('The average male life expectancy, over all the wards visited is ', avgmaleLE/length(inter_3))
+cat('The average life expectancy, over all the wards visited is ', (avgfemaleLE+avgmaleLE)/(2*length(inter_3)))
+```
+
+The final and most interesting thing to investigate is whether there are any spatial patterns for CASA Treasure Hunt locations or are they randomly distributed?
+
+The first step in determining whether there are patterns or not is to calculate Ripley's K for varying distances. Ripley's K is used to investigate the presences of spatial randomness but does not reveal potential patterns. When the observed K is greater than the theoretical K, it is an indication of the presence of spatial patterns. Figure 2.2 shows the results, and besides r< 50, all empirical values are greater than the theoretical indicated value. That is an indication of the presences of a spatial pattern. That motivates to investigate the pattern, which can be done by a DBSCAN analysis.
+
+
+```{r include=FALSE}
+#Getting London Boroughs
+
+EW <- geojson_read("http://geoportal.statistics.gov.uk/datasets/8edafbe3276d4b56aec60991cbddda50_2.geojson", what = "sp")
+#pull out london using grep and the regex wildcard for'start of the string' (^) to to look for the bit of the district code that relates to London (E09) from the 'lad15cd' column in the data slot of our spatial polygons dataframe
+BoroughMap <- EW[grep("^E09",EW@data$lad15cd),]
+BoroughMapBNG <- spTransform(BoroughMap,BNG)
+
+#Setting up a window for the anaylsis to carried out in
+window <- as.owin(BoroughMapBNG)
+plot(window)
+huntaddressesSFBNG$geometry
+# Geometry has to be 
+huntgeometry <- c(unlist(huntaddressesSFBNG$geometry))
+huntgeometry
+looprange <- length(huntgeometry)
+j <- 1
+x_coords <- 0
+for (i in seq(1,looprange,2)){
+  x_coords[j]<-huntgeometry[i]
+  j <- j + 1
+}
+
+
+l <- 1
+y_coords <- 0
+for (i in seq(2,looprange+1,2)){
+  y_coords[l]<-huntgeometry[i]
+  l <- l + 1
+}
+
+y_coords
+
+#For the point pattern analysis, we need to create a new object, PPP, in order to carry out the analysis
+#create a ppp object
+huntaddressesSFBNG.ppp <- ppp(x=x_coords,y=y_coords,window=window)
+
+#Calculating Ripleys K
+
+K <- Kest(huntaddressesSFBNG.ppp, correction="best", rmax = 3000)
+K_data <- data.frame(list(K$r,K$theo,K$iso))
+colnames(K_data)<-c('step','theo','iso')
+```
+#### Figure 2.2 - Plot of Ripley's K
+``` {r ,fig.height=3,fig.align='center',echo=FALSE}
+ggplot(K_data, aes(step)) + 
+  geom_line(aes(y = theo,colour = "K_theo")) + 
+  geom_line(aes(y = iso,colour = "K_pois")) +
+  scale_color_discrete(labels = c(expression(hat(K)[iso](r)), expression(K[pois](r))))+
+  ylab('K(r)')+
+  xlab('r')
+```
+
+For the DBSCAN, a size of the epsilon neighbourhood (eps) along with the minimum number of points in the eps region, must be specified. The number minimum number of points should be chosen as the number of dimensions in the data plus one, according to the original article by (Ester et al.,1996). The size of the neighbourhood can be chosen based on the k-NN distance plot, and the distance of choice should be the one suggested by the 'knee' in the plot. Figure 2.3 shows the k-NN distance plot, and figure 2.4 shows the results from the DBSCAN analysis.
+The plot of the results from the DBSCAN analysis shows that there are two clear clusters, one larger than the other, and one of them quite large.
+
+```{r include=FALSE}
+#Doing a DBSCAN analysis
+
+#Check CRS of the borders
+crs(BoroughMapBNG)
+
+#first extract the points from the spatial points data frame
+Huntaddresspoints <- data.frame(x_coords,y_coords)
+#now run the dbscan analysis
+db <- fpc::dbscan(Huntaddresspoints, eps = 3000, MinPts = 3)
+```
+#### Figure 2.3 - k-NN distance plot
+```{r ,fig.width=4.3, fig.height=3,fig.align='center',echo=FALSE}
+kNNdistplot(Huntaddresspoints,3)
+```
+```{r include=FALSE}
+#Creating a nicer plot with ggplot2
+
+#Extracting the clusters
+
+Huntaddresspoints$cluster <- db$cluster
+
+#next we are going to create some convex hull polygons to wrap around the points in our clusters
+
+#use the ddply function in the plyr package to get the convex hull coordinates from the cluster groups in our dataframe
+chulls <- ddply(Huntaddresspoints, .(cluster), function(df) df[chull(df$x_coords, df$y_coords), ])
+
+#FOR SOME REASON THIS DOESN'T WORK. A WORKAROUND IS TO INPUT THE SUBSET DIRECTLY THREE LINES BELOW.
+# as 0 isn't actually a cluster (it's all points that aren't in a cluster) drop it from the dataframe
+#chulls_sub <- subset(chulls, cluster>=1)
+
+
+#now create a ggplot2 object from our data
+dbplot <- ggplot(data=Huntaddresspoints, aes(x_coords,y_coords, colour=cluster, fill=cluster)) 
+#add the points in
+dbplot <- dbplot + geom_point()
+#now the convex hulls
+dbplot <- dbplot + geom_polygon(data = subset(chulls, cluster>=1), aes(x_coords,y_coords, group=cluster), alpha = 0.5) 
+#now plot, setting the coordinates to scale correctly and as a black and white plot (just for the hell of it)...
+dbplot + theme_bw() + coord_equal()
+#Using a basemap to create a cooler map
+BoroughMapWGS <-spTransform(BoroughMapBNG, CRS(latlong))
+BoroughMapWGS@bbox
+
+#Converting the base map to BNG
+
+basemap<-openmap(c(51.40,-0.30),c(51.63,0.08), zoom=NULL,"stamen-toner")
+#convert the basemap to British National Grid - remember we created the BNG object right at the beginning of the practical - it's an epsg string...
+basemap_bng<-openproj(basemap, projection=BNG)
+```
+#### Figure 2.4 - Result from the DBSCAN Analysis
+```{r ,fig.width=4.3, fig.height=3.5,fig.align='center',echo=FALSE}
+autoplot(basemap_bng) + 
+  geom_point(data=Huntaddresspoints, aes(x_coords,y_coords, colour=cluster, fill=cluster)) + 
+  geom_polygon(data = subset(chulls, cluster>=1), aes(x_coords,y_coords, group=cluster, fill=cluster), alpha = 0.5)  
+```
+```{r eval=FALSE, include=FALSE}
+plot(db, Huntaddresspoints, main = "DBSCAN Output", frame = F)
+plot(BoroughMapBNG, add=T)
+```
+
+## Conclusion
+
+This project aimed at investigating the winning route of the 2016 CASA treasury hunt, and as a result of this answer six main questions. Answers for all questions have been proposed, and the final question revealed that there indeed appear to be a spatial pattern in the location of the treasure hunt locations.
+
+This is the end of the second sub-project and it is now time to look at why and how to create an interactive visualisation app.
+
+# Interactive Visualisation of 2010 Census data of Demographics of states and counties in the United States
+
+This part of the project aims at exploiting one of the more advanced visualisation tools when working in R. This project is about building an interactive visualisation app, to showcase 2010 Census data for states and counties in the United States. The intention behind this project was to build an app, where the user can choose the state and/or county, to display the data of interest. 
+Section one of this project is a motivational section on why build an interactive app is useful. Section two is a description of the work process for building an app and the app itself. Section three highlights potential future improvements, to increase the usages and the level of impact, of the app build here. Section four rounds off this project and concludes.
+
+## Why Build an Interactive Visualisation App?
+
+There are a couple of reasons by one would wish to build an interactive visualisation app. One of them being, that engaging the user increases the impact of the message through increased understanding by the user. 
+It can be abstract or simply very difficult to highlight regional differences in words or without using confusingly many plots/maps. By using interactive maps, it is possible to show differences across areas easily, and potentially compare two different areas at the same time. With this, increasing the understanding, of the message one tries to convey, of the user of the interactive map. Furthermore, allowing the user to exploit areas themselves can lead to the discovery of alternative conclusions/views on the same problem, as one view on the problem is not forced on the user. There is rarely only one way to view a problem, and often the most influential solutions are discovered by coincidence. 
+Finally, it is impossible to neglect the attractiveness of the look of an interactive map compared to a static map. It does indeed increase the professionalism, and thereby the impact, of the map and the underlying message. 
+The next thing to consider is what the usages of an interactive map are, and when it is especially useful. An interactive map can be especially useful when doing marketing analyses, with the aim of targeting the intended consumer group or when investigating how to combat a deadly virus outbreak most efficiently. It is hard to imagine a case where an interactive map is not useful because of the possible infinitely complexity of an interactive map. The app build in this project is simple yet powerful, but there is always room for improvements, and these will be mentioned in more detail later.
+
+## The Building Process and the App Itself
+
+This section investigates the building process of an interactive map in detail and discusses the use of the app build in this project. The app itself is accessible through the link below, and figure 3.1 displays the workflow. As mentioned in the beginning, the interactive app build in this project is build using the Shiny library. In the following, the mentioning 'the app' referees to the app build in this project.
+
+[Link to the Interactive 2010 Census App](https://lunowsapps.shinyapps.io/Interactive_Vis_Census_App/ "Interactive 2010 Census App")
+
+Any Shiny application consists of a user interface and a server module, where the user interface (UI) builds the layout of the app and server module serves the input to the UI. The elements that make up the UI in the app is the map module itself, the histograms, the descriptive statistics tables, the option to enable county centres and the option to select the variable of interest. The choice of UI elements enables the user to compare a state to the rest of the states and compare a county of choice to the state it belongs to and all other states. Some parts of the user interface are static, like the interactive map module, the select option, the county-centre-enable option and the descriptive statistic table for all the States (semi-static). The descriptive statistics table for all the states is static in the sense that it does always appear because the output only changes with the variable of interest. The remaining parts of the UI appear through interactions with the user, through clicks. 
+
+![The flow diagram of the work progress for building an interactive app](flowchart.png)
+
+At this point, two things need clarification. The reason for using county centres, instead of the county boundaries themselves, is because of the decrease in the computational complexity. The use of county borders complicates the intersection calculation, and with no loss of information in using the county centres. Furthermore, the reason for the option to enable county centres is because the presence of the county centres slows the application and the initial map looks messy with all the +3000 counties present. Therefore, it is recommended to enable county centres after some degree of zooming. 
+
+The interested programmer should consult the underlying code but now follows some short notes on some of the calculations in the server module. The server module consists of six main elements, a reactive function, two observeEvents and three render functions. The reactive function is a function that recalculates when its input changes, referred to as lazy evaluation. In this case here, the reactive function monitors the need for county centres.
+The observeEvent functions carry out any computations related to the interaction with the user, i.e. performing an action in response to an event. In the app, the observeEvent functions handle the creation of the histograms and the dynamic descriptive statistic table when the user clicks on the map itself. Therefore, does the observeEvent functions contains render functions, as described in more detail below, but they are like the ones described below. 
+The reactive function and the observeEvent function can sound similar, but the difference lies in the fact that recalculation is in general not regarded as performing an action [Event handler](https://shiny.rstudio.com/reference/shiny/1.0.0/observeEvent.html).
+The render functions are used to deliver output to modules in the user interface, and main render functions in the server module provide for example the map and semi-static descriptive statistic table with the output.
+The final thing of interest to mention is how the click event translates into the output as desired. When a click is observed, within borders or on a marker, it translates into a point with a longitude and latitude coordinate. The intersection of this point and the state/county borders is calculated to locate the right state/county to display.
+It is time to discuss some future considerations, with the structure of the app outlined.
+
+## Future Considerations
+
+Some potential improvements of the app build in this project are; 
+
+*	A bottom to convert numbers to percentage
+*	Show multiple variables at the same time
+*	Store histograms/descriptive tables through a bottom
+*	Show variables through gradient filling on the map
+*	Dynamic locate the data needed regarding on the selected variable
+
+The two bottoms are to some degree self-explanatory. The first one could be useful as all numbers now are in absolute terms, and sometimes relative numbers are more easily comparable.
+Showing multiple variables at the same time is useful for comparison but could be complicated by the need for grouping across variables if displayed through tables. One way to come around this challenge could be to colour area polygons with gradient fill based on the variable values. However, that can also be messy with many variables to compare.
+The final thing that could be useful is to dynamically locate the variable of interest in the data frame containing the data of the states/counties. For now, they are statically withdrawn when a variable is selected which implies that updating with new data explicitly assumes that the variables are in the same place as previous years.
+It is time to around of the project, with these potential improvements outlined.
+
+## Conclusion
+
+This project has outlined the motivation for the need of interactive maps, the building process and considered future improvements. The output of the project is an interactive visualisation app that visualises 2010 Census data for states and counties in the United States. The app created utilises different interactive features, and thereby showcase some of the almost unlimited possibilities that Shiny brings. Only the imagination sets the limit. 
+
+That was the end of the third sub-project, and it is now time to around off this overall project. 
+
+# Conclusion
+
+This project has shown some of the opportunities within R and highlighted R's undenied rightful place as a candidate as a GIS software. The first sub-project showed that good looking maps, perhaps not as easily as in traditional GIS software, can be created within R. What R lacks regarding the convenience of traditional GIS software's click-and-go, is offset by R's dominance in data management.
+The second sub-project showed that a spatial statistical analysis could be conducted in R. The analysis showed that the treasure hunt locations exhibited a spatial pattern, more correctly two clusters of different size. The third sub-project showcased how spatial data can be visualised in an interactive map. The motivation for using interactive maps along with future improvements has been outlined. 
+Overall, this final project has highlighted a wide range of different opportunities within R. All the analyses conducted here assumes some prior knowledge about R and some interest in understanding the different libraries needed to carry out the analyses. However, it is not believed to be to a greater degree than with traditional GIS software, and the spill-over-effect of studying the R libraries is only that the programmer becomes a better programmer. 
